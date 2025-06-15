@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/paulmarc/mailcow-logv#readme",
   "dependencies": {
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "jest": "^30.0.0"
   }
 }
