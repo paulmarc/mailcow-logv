@@ -1,5 +1,8 @@
 require('dotenv').config();
 const express = require('express');
+const session = require('express-session');
+const passport = require('./auth/passport');
+const webAuthn = require('./auth/webAuthn');
 const { exec } = require('child_process');
 const path = require('path');
 
@@ -7,20 +10,64 @@ const path = require('path');
 const { parsePflogsumm } = require('./parsers/pflogsummParser');
 
 const app = express();
-const PORT = process.env.PORT || 20333;
+const PORT = process.env.PORT || 3000;
 const LOG_PATH = process.env.LOG_PATH || '/var/log/mail.log';
+
+// Session & Auth setup
+app.use(session({
+  secret: process.env.AUTH_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: process.env.NODE_ENV === 'production' }
+}));
+app.use(express.urlencoded({ extended: true }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Auth guard
+function ensureAuthenticated(req, res, next) {
+  if (req.isAuthenticated()) return next();
+  res.redirect('/login');
+}
+
+// Routes: Login/Logout
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'login.html'));
+});
+
+app.post('/login',
+  passport.authenticate('local', {
+    successRedirect: '/',
+    failureRedirect: '/login'
+  })
+);
+
+app.post('/logout', (req, res) => {
+  req.logout(err => {
+    if (err) return next(err);
+    res.redirect('/login');
+  });
+});
+
+// WebAuthn 2FA endpoints
+app.post('/webauthn/registerRequest', ensureAuthenticated, webAuthn.generateRegistrationOptions);
+app.post('/webauthn/registerResponse', ensureAuthenticated, webAuthn.verifyRegistrationResponse);
+app.post('/webauthn/authenticateRequest', webAuthn.generateAuthenticationOptions);
+app.post('/webauthn/authenticateResponse', webAuthn.verifyAuthenticationResponse);
+
+// Protect UI and API
+app.use(ensureAuthenticated);
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/api', express.json(), (req, res, next) => next()); // API uses same auth guard above
 
 // Utility: map range to pflogsumm args
 function getPflogsummCommand(range) {
   switch (range) {
     case 'day':
-      // Last 24 hours
       return `pflogsumm --detail -u -d today ${LOG_PATH}`;
     case 'week':
-      // Last 7 days
       return `pflogsumm --detail -u -l 7d ${LOG_PATH}`;
     case 'month':
-      // Last 30 days
       return `pflogsumm --detail -u -l 30d ${LOG_PATH}`;
     default:
       return null;
@@ -47,10 +94,7 @@ app.get('/api/report/:range', (req, res) => {
   });
 });
 
-// Serve static assets
-app.use(express.static(path.join(__dirname, 'public')));
-
-// Export app for testing and start server if run directly
+// Export or start server
 if (require.main === module) {
   app.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
