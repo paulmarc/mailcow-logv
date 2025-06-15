@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Mail Dashboard</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { display: flex; align-items: center; justify-content: center; height: 100vh; background-color: #f8f9fa; }
+    .login-card { width: 100%; max-width: 360px; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1); background: #fff; }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <h3 class="text-center mb-4">Mail Dashboard Login</h3>
+    <form id="loginForm" class="needs-validation" method="POST" action="/login" novalidate>
+      <div class="mb-3">
+        <label for="username" class="form-label">Username</label>
+        <input type="text" class="form-control" id="username" name="username" required minlength="3" autofocus>
+        <div class="invalid-feedback">
+          Please enter a username (at least 3 characters).
+        </div>
+      </div>
+      <div class="mb-3">
+        <label for="password" class="form-label">Password</label>
+        <input type="password" class="form-control" id="password" name="password" required minlength="6">
+        <div class="invalid-feedback">
+          Please provide a password (at least 6 characters).
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary w-100">Login</button>
+    </form>
+    <hr>
+    <p class="text-center small">Need 2FA? Use the buttons below:</p>
+    <div class="d-grid gap-2">
+      <button id="webauthnRegisterBtn" class="btn btn-outline-secondary">Register Authenticator</button>
+      <button id="webauthnAuthBtn" class="btn btn-outline-secondary">Use Authenticator</button>
+    </div>
+  </div>
+
+  <script>
+    // Bootstrap form validation
+    (function() {
+      'use strict';
+      const form = document.querySelector('.needs-validation');
+      form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        form.classList.add('was-validated');
+      }, false);
+    })();
+
+    // WebAuthn client-script scaffolding
+    async function registerAuthenticator() {
+      try {
+        const optionsRes = await fetch('/webauthn/registerRequest', { method: 'POST' });
+        const options = await optionsRes.json();
+        const credential = await navigator.credentials.create({ publicKey: options });
+        const verificationRes = await fetch('/webauthn/registerResponse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(credential)
+        });
+        const verification = await verificationRes.json();
+        if (verification.status === 'ok') alert('Registration successful!');
+        else alert('Registration failed: ' + (verification.error || 'Unknown error'));
+      } catch (err) {
+        console.error('Registration error:', err);
+        alert('Registration error: ' + err);
+      }
+    }
+
+    async function authenticateWithAuthenticator() {
+      try {
+        const userID = document.getElementById('username').value;
+        const optionsRes = await fetch('/webauthn/authenticateRequest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userID })
+        });
+        const options = await optionsRes.json();
+        const assertion = await navigator.credentials.get({ publicKey: options });
+        const verificationRes = await fetch('/webauthn/authenticateResponse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(assertion)
+        });
+        const verification = await verificationRes.json();
+        if (verification.status === 'ok') window.location.href = '/';
+        else alert('Authentication failed: ' + (verification.error || 'Unknown error'));
+      } catch (err) {
+        console.error('Authentication error:', err);
+        alert('Authentication error: ' + err);
+      }
+    }
+
+    document.getElementById('webauthnRegisterBtn').addEventListener('click', e => {
+      e.preventDefault(); registerAuthenticator();
+    });
+    document.getElementById('webauthnAuthBtn').addEventListener('click', e => {
+      e.preventDefault(); authenticateWithAuthenticator();
+    });
+  </script>
+  <!-- Bootstrap JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
