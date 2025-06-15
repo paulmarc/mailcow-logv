@@ -19,7 +19,7 @@ function getPflogsummCommand(range) {
     case 'week':
       // Last 7 days
       return `pflogsumm --detail -u -l 7d ${LOG_PATH}`;
-    case 'week':
+    case 'month':
       // Last 30 days
       return `pflogsumm --detail -u -l 30d ${LOG_PATH}`;
     default:
@@ -33,13 +33,13 @@ app.get('/api/report/:range', (req, res) => {
   const cmd = getPflogsummCommand(range);
 
   if (!cmd) {
-    return res.status(400).json({ error: 'Invalid range. Use day, week or month.'});
+    return res.status(400).json({ error: 'Invalid range. Use day, week, or month.' });
   }
 
   exec(cmd, (error, stdout, stderr) => {
     if (error) {
       console.error('Error executing pflogsumm:', stderr);
-      return res.status(500).json({error: 'Failed to generate report.'});
+      return res.status(500).json({ error: 'Failed to generate report.' });
     }
 
     const report = parsePflogsumm(stdout);
@@ -47,6 +47,7 @@ app.get('/api/report/:range', (req, res) => {
   });
 });
 
+// Serve static assets
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Export app for testing and start server if run directly
