@@ -49,6 +49,11 @@ app.get('/api/report/:range', (req, res) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
-});
+// Export app for testing and start server if run directly
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+} else {
+  module.exports = app;
+}
