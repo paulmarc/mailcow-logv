@@ -25,6 +25,11 @@
               <option value="month">Last Month</option>
             </select>
           </li>
+          <li class="nav-item ms-3">
+            <form method="POST" action="/logout">
+              <button class="btn btn-outline-danger">Logout</button>
+            </form>
+          </li>
         </ul>
       </div>
     </div>
@@ -51,7 +56,7 @@
       </div>
       <div class="col-md-6 mb-4">
         <div class="card">
-          <div class="card-header">Senders & Recipients</div>
+          <div class="card-header">Senders &amp; Recipients</div>
           <div class="card-body">
             <h6>Senders</h6>
             <ul id="sendersList" class="list-group mb-3"></ul>
