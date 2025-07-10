@@ -10,7 +10,8 @@ const path = require('path');
 const { parsePflogsumm } = require('./parsers/pflogsummParser');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT;
+const HOST = process.env.HOST;
 const LOG_PATH = process.env.LOG_PATH || '/var/log/mail.log';
 
 // Session & Auth setup
@@ -96,8 +97,8 @@ app.get('/api/report/:range', (req, res) => {
 
 // Export or start server
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server listening on port ${PORT}`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Server listening on http://${HOST}:${PORT}`);
   });
 } else {
   module.exports = app;
