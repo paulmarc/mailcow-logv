@@ -59,6 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadReport(range) {
     try {
       const res = await fetch(`/api/report/${range}`);
+      if (res.status === 401) {
+        // not logged in → kick back to the login page
+        return window.location.href = '/login';
+      }
       const data = await res.json();
 
       // Chart data
