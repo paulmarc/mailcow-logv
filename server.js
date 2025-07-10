@@ -59,7 +59,11 @@ app.post('/webauthn/authenticateResponse', webAuthn.verifyAuthenticationResponse
 // Protect UI and API
 app.use(ensureAuthenticated);
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/api', express.json(), (req, res, next) => next()); // API uses same auth guard above
+app.use('/api', express.json(), (req, res, next) => {
+  if (req.isAuthenticated())
+   return next();
+  return res.status(401).json({error: 'Authentication required'});
+});
 
 // Utility: map range to pflogsumm args
 function getPflogsummCommand(range) {
