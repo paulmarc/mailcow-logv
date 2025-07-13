@@ -96,7 +96,12 @@ app.get('/api/report/:range', (req, res) => {
 
     // DEBUG: Output pflogsumm
     // console.log('RAW PFLOGSUMM OUTPUT:\n', stdout);
+
     const report = parsePflogsumm(stdout);
+
+    // DEBUG: JSON pflogsumm
+    console.log('PARSED REPORT:', JSON.stringify(report, null, 2));
+
     res.json(report);
   });
 });

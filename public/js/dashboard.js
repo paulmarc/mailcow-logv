@@ -64,6 +64,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return window.location.href = '/login';
       }
       const data = await res.json();
+      console.log('REPORT DATA:', data);
 
       // Chart data
       const labels = data.hourly.map(h => h.period);
