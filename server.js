@@ -69,7 +69,7 @@ app.use('/api', express.json(), (req, res, next) => {
 function getPflogsummCommand(range) {
   switch (range) {
     case 'day':
-      return `pflogsumm -d today ${LOG_PATH}`;
+      return `cat ${LOG_PATH} | cut -d ' ' -f 6- | pflogsumm`;
     case 'week':
       return `pflogsumm ${LOG_PATH}`;
     case 'month':
