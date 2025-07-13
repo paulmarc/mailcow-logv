@@ -94,6 +94,8 @@ app.get('/api/report/:range', (req, res) => {
       return res.status(500).json({ error: 'Failed to generate report.' });
     }
 
+    // DEBUG: Output pflogsumm
+    // console.log('RAW PFLOGSUMM OUTPUT:\n', stdout);
     const report = parsePflogsumm(stdout);
     res.json(report);
   });
