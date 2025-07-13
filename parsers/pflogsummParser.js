@@ -6,87 +6,61 @@
  * @returns {object} Parsed report.
  */
 function parsePflogsumm(raw) {
-  const lines = raw.split('\n');
-  const result = {
-    hourly: [],
-    hosts: [],
-    senders: [],
-    recipients: [],
-    totals: {}
-  };
+  const lines = raw.split(/\r?\n/);
+  const result = { hourly: [], hosts: [], senders: [], recipients: [], totals: {} };
   let state = null;
 
   lines.forEach(line => {
-    // Section headers
-    if (/^Hourly traffic summary/i.test(line)) {
-      state = 'hourly';
-      return;
-    }
-    if (/^Host\/domain summary/i.test(line)) {
-      state = 'hosts';
-      return;
-    }
-    if (/^(Top )?Senders by message count/i.test(line)) {
-      state = 'senders';
-      return;
-    }
-    if (/^(Top )?Recipients by message count/i.test(line)) {
-      state = 'recipients';
-      return;
-    }
+    const trimmed = line.trim();
 
-    // Totals
+    // Section headers
+    if (/^Hourly traffic summary/i.test(trimmed)) { state = 'hourly'; return; }
+    if (/^Host\/domain summary/i.test(trimmed)) { state = 'hosts'; return; }
+    if (/^(Top )?Senders by message count/i.test(trimmed)) { state = 'senders'; return; }
+    if (/^(Top )?Recipients by message count/i.test(trimmed)) { state = 'recipients'; return; }
+
+    // Totals (always parse regardless of state)
     let m;
-    if ((m = line.match(/^Messages received\s+(\d+)/i))) {
+    if ((m = trimmed.match(/^Messages received:?[\s]+(\d+)/i))) {
       result.totals.received = parseInt(m[1], 10);
       return;
     }
-    if ((m = line.match(/^(Messages delivered|Messages sent)\s+(\d+)/i))) {
+    if ((m = trimmed.match(/^(Messages delivered|Messages sent):?[\s]+(\d+)/i))) {
       result.totals.sent = parseInt(m[2], 10);
       return;
     }
 
     // Section data parsing
-    switch (state) {
-      case 'hourly':
-        m = line.match(/^(\d{2}:\d{2}-\d{2}:\d{2})\s+(\d+)\s+(\d+)/);
-        if (m) {
-          result.hourly.push({
-            period: m[1],
-            received: +m[2],
-            sent: +m[3]
-          });
-        } else if (!line.trim()) {
-          state = null;
-        }
-        break;
+    if (state === 'hourly') {
+      m = trimmed.match(/^(\d{2}:\d{2}-\d{2}:\d{2})[\s]+(\d+)[\s]+(\d+)/);
+      if (m) {
+        result.hourly.push({ period: m[1], received: +m[2], sent: +m[3] });
+      }
+      return;
+    }
 
-      case 'hosts':
-        m = line.match(/^(\S+)\s+(\d+)/);
-        if (m) {
-          result.hosts.push({ host: m[1], count: +m[2] });
-        } else if (!line.trim()) {
-          state = null;
-        }
-        break;
+    if (state === 'hosts') {
+      m = trimmed.match(/^(\S+)[\s]+(\d+)/);
+      if (m) {
+        result.hosts.push({ host: m[1], count: +m[2] });
+      }
+      return;
+    }
 
-      case 'senders':
-        m = line.match(/^(\S+)\s+(\d+)/);
-        if (m) {
-          result.senders.push({ sender: m[1], count: +m[2] });
-        } else if (!line.trim()) {
-          state = null;
-        }
-        break;
+    if (state === 'senders') {
+      m = trimmed.match(/^(\S+)[\s]+(\d+)/);
+      if (m) {
+        result.senders.push({ sender: m[1], count: +m[2] });
+      }
+      return;
+    }
 
-      case 'recipients':
-        m = line.match(/^(\S+)\s+(\d+)/);
-        if (m) {
-          result.recipients.push({ recipient: m[1], count: +m[2] });
-        } else if (!line.trim()) {
-          state = null;
-        }
-        break;
+    if (state === 'recipients') {
+      m = trimmed.match(/^(\S+)[\s]+(\d+)/);
+      if (m) {
+        result.recipients.push({ recipient: m[1], count: +m[2] });
+      }
+      return;
     }
   });
 
