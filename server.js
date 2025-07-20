@@ -1,18 +1,20 @@
+// server.js
 require('dotenv').config();
-const express = require('express');
-const path = require('path');
-const session = require('express-session');
-const flash = require('connect-flash');
-const passport = require('./auth/passport');
-const webAuthn = require('./auth/webAuthn');
-const csurf = require('csurf');
-const { exec } = require('child_process');
+const express    = require('express');
+const path       = require('path');
+const session    = require('express-session');
+const flash      = require('connect-flash');
+const passport   = require('./auth/passport');
+const webAuthn   = require('./auth/webAuthn');
+const csurf      = require('csurf');
+const { exec }   = require('child_process');
 const { parsePflogsumm } = require('./parsers/pflogsummParser');
 
 const app = express();
-const PORT = process.env.PORT;
-const HOST = process.env.HOST;
+const PORT     = process.env.PORT;
+const HOST     = process.env.HOST;
 const LOG_PATH = process.env.LOG_PATH;
+const DASHBOARD_TITLE = process.env.DASHBOARD_TITLE || 'Mail Dashboard';
 
 // View engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -42,10 +44,17 @@ function ensureAuthenticated(req, res, next) {
 }
 
 // Routes
+
+// Login form
 app.get('/login', (req, res) => {
-  res.render('login', { csrfToken: req.csrfToken(), error: req.flash('error') });
+  res.render('login', {
+    csrfToken: req.csrfToken(),
+    error: req.flash('error'),
+    dashboardTitle: DASHBOARD_TITLE
+  });
 });
 
+// Handle login
 app.post('/login',
   passport.authenticate('local', {
     successRedirect: '/',
@@ -54,6 +63,7 @@ app.post('/login',
   })
 );
 
+// Handle logout
 app.post('/logout', (req, res, next) => {
   req.logout(err => {
     if (err) return next(err);
@@ -62,22 +72,39 @@ app.post('/logout', (req, res, next) => {
 });
 
 // WebAuthn endpoints
-app.post('/webauthn/registerRequest', ensureAuthenticated, webAuthn.generateRegistrationOptions);
-app.post('/webauthn/registerResponse', ensureAuthenticated, webAuthn.verifyRegistrationResponse);
-app.post('/webauthn/authenticateRequest', webAuthn.generateAuthenticationOptions);
-app.post('/webauthn/authenticateResponse', webAuthn.verifyAuthenticationResponse);
+app.post('/webauthn/registerRequest',
+  ensureAuthenticated,
+  webAuthn.generateRegistrationOptions
+);
+app.post('/webauthn/registerResponse',
+  ensureAuthenticated,
+  webAuthn.verifyRegistrationResponse
+);
+app.post('/webauthn/authenticateRequest',
+  webAuthn.generateAuthenticationOptions
+);
+app.post('/webauthn/authenticateResponse',
+  webAuthn.verifyAuthenticationResponse
+);
 
-// Dashboard
+// Dashboard page
 app.get('/', ensureAuthenticated, (req, res) => {
-  res.render('dashboard', { csrfToken: req.csrfToken(), user: req.user });
+  res.render('dashboard', {
+    csrfToken: req.csrfToken(),
+    user: req.user,
+    dashboardTitle: DASHBOARD_TITLE
+  });
 });
 
-// API auth guard
+// API auth guard (returns JSON 401 on unauthenticated)
 app.use('/api', (req, res, next) => {
-  if (!req.isAuthenticated()) return res.status(401).json({ error: 'Auth required' });
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ error: 'Authentication required' });
+  }
   next();
 });
 
+// Build pflogsumm command based on range
 function getPflogsummCommand(range) {
   switch (range) {
     case 'day':
@@ -91,9 +118,12 @@ function getPflogsummCommand(range) {
   }
 }
 
+// Report API
 app.get('/api/report/:range', (req, res) => {
   const cmd = getPflogsummCommand(req.params.range);
-  if (!cmd) return res.status(400).json({ error: 'Invalid range' });
+  if (!cmd) {
+    return res.status(400).json({ error: 'Invalid range' });
+  }
 
   exec(cmd, (err, stdout, stderr) => {
     if (err) {
