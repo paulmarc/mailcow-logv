@@ -1,14 +1,22 @@
+// public/js/dashboard.js
+
 document.addEventListener('DOMContentLoaded', () => {
-  const rangeSelect = document.getElementById('rangeSelect');
-  const hostsList = document.getElementById('hostsList');
-  const sendersList = document.getElementById('sendersList');
-  const recipientsList = document.getElementById('recipientsList');
-  const totalReceived = document.getElementById('totalReceived');
-  const totalSent = document.getElementById('totalSent');
-  const ctx = document.getElementById('hourlyChart').getContext('2d');
+  const rangeSelect     = document.getElementById('rangeSelect');
+  const hostsList       = document.getElementById('hostsList');
+  const sendersList     = document.getElementById('sendersList');
+  const recipientsList  = document.getElementById('recipientsList');
+  const totalReceived   = document.getElementById('totalReceived');
+  const totalSent       = document.getElementById('totalSent');
+  const spinner         = document.getElementById('spinnerOverlay');
+  const canvas          = document.getElementById('hourlyChart');
+
+  if (!canvas) {
+    console.error('Canvas element #hourlyChart not found');
+    return;
+  }
+  const ctx = canvas.getContext('2d');
   let hourlyChart;
 
-  // Initialize Chart.js
   function initChart(labels = [], dataReceived = [], dataSent = []) {
     if (hourlyChart) hourlyChart.destroy();
     hourlyChart = new Chart(ctx, {
@@ -33,59 +41,71 @@ document.addEventListener('DOMContentLoaded', () => {
       options: {
         responsive: true,
         scales: {
-          x: { display: true, title: { display: true, text: 'Hour Range' } },
-          y: { display: true, title: { display: true, text: 'Messages' }, beginAtZero: true }
+          x: {
+            display: true,
+            title: { display: true, text: 'Time' }
+          },
+          y: {
+            display: true,
+            title: { display: true, text: 'Messages' },
+            beginAtZero: true
+          }
         }
       }
     });
   }
 
-  // Render lists
   function renderList(listElem, items, key) {
     listElem.innerHTML = '';
     items.forEach(item => {
       const li = document.createElement('li');
       li.className = 'list-group-item d-flex justify-content-between align-items-center';
-      li.textContent = item[key];
+      const text = document.createElement('span');
+      text.textContent = item[key];
       const badge = document.createElement('span');
       badge.className = 'badge bg-primary rounded-pill';
       badge.textContent = item.count;
-      li.appendChild(badge);
+      li.append(text, badge);
       listElem.appendChild(li);
     });
   }
 
-  // Fetch and render report
   async function loadReport(range) {
+    spinner.style.display = 'flex';
     try {
       const res = await fetch(`/api/report/${range}`);
-      if (res.status === 401) {
-        // not logged in → kick back to the login page
-        return window.location.href = '/login';
+      if (!res.ok) {
+        console.error('API error', res.status);
+        if (res.status === 401) {
+          window.location.href = '/login';
+          return;
+        }
+        alert(`Failed to load data: ${res.status}`);
+        return;
       }
+
       const data = await res.json();
       console.log('REPORT DATA:', data);
 
-      // Chart data
       const labels = data.hourly.map(h => h.period);
-      const rec = data.hourly.map(h => h.received);
-      const sent = data.hourly.map(h => h.sent);
-      initChart(labels, rec, sent);
+      const recData = data.hourly.map(h => h.received);
+      const sentData = data.hourly.map(h => h.sent);
+      initChart(labels, recData, sentData);
 
-      // Lists and totals
       renderList(hostsList, data.hosts, 'host');
       renderList(sendersList, data.senders, 'sender');
       renderList(recipientsList, data.recipients, 'recipient');
-      totalReceived.textContent = data.totals.received || 0;
-      totalSent.textContent = data.totals.sent || 0;
+
+      totalReceived.textContent = data.totals.received != null ? data.totals.received : 0;
+      totalSent.textContent     = data.totals.sent     != null ? data.totals.sent     : 0;
     } catch (err) {
       console.error('Error loading report:', err);
+      alert('Error loading report; see console.');
+    } finally {
+      spinner.style.display = 'none';
     }
   }
 
-  // Initial load
   loadReport(rangeSelect.value);
-
-  // Change handler
   rangeSelect.addEventListener('change', () => loadReport(rangeSelect.value));
 });
