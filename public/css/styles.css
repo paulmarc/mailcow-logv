@@ -58,11 +58,17 @@ select.form-select {
   bottom: 0;
   background: rgba(255, 255, 255, 0.85);
   display: none;
+  /* hidden by default */
   align-items: center;
   justify-content: center;
+  pointer-events: none;
+  /* clicks go through when hidden */
   z-index: 2000;
 }
 
 .spinner-overlay.active {
   display: flex;
+  /* show when active */
+  pointer-events: all;
+  /* block clicks when showing */
 }
