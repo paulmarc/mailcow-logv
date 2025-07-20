@@ -14,9 +14,12 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('Canvas element #hourlyChart not found');
     return;
   }
+  if (!spinner) {
+    console.error('Spinner overlay #spinnerOverlay not found');
+  }
 
   const ctx = canvas.getContext('2d');
-  let hourlyChart;
+  let hourlyChart = null;
 
   function initChart(labels = [], dataReceived = [], dataSent = []) {
     if (hourlyChart) hourlyChart.destroy();
@@ -54,9 +57,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadReport(range) {
-    // show spinner
-    spinner.classList.remove('d-none');
-    spinner.classList.add('d-flex');
+    // show spinner by toggling our custom 'active' class
+    spinner.classList.add('active');
 
     try {
       const res = await fetch(`/api/report/${range}`);
@@ -69,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       const data = await res.json();
-      console.log('REPORT DATA:', data);
 
       // Chart
       const labels   = data.hourly.map(h => h.period);
@@ -91,12 +92,11 @@ document.addEventListener('DOMContentLoaded', () => {
       alert('Error loading data; check console.');
     } finally {
       // hide spinner
-      spinner.classList.remove('d-flex');
-      spinner.classList.add('d-none');
+      spinner.classList.remove('active');
     }
   }
 
-  // initial load and handler
+  // initial load and change handler
   loadReport(rangeSelect.value);
   rangeSelect.addEventListener('change', () => loadReport(rangeSelect.value));
 });
