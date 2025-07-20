@@ -1,27 +1,37 @@
 require('dotenv').config();
 const express = require('express');
+const path = require('path');
 const session = require('express-session');
+const flash = require('connect-flash');
 const passport = require('./auth/passport');
 const webAuthn = require('./auth/webAuthn');
+const csurf = require('csurf');
 const { exec } = require('child_process');
-const path = require('path');
-
-// Import parsing logic
 const { parsePflogsumm } = require('./parsers/pflogsummParser');
 
 const app = express();
 const PORT = process.env.PORT;
 const HOST = process.env.HOST;
-const LOG_PATH = process.env.LOG_PATH || '/var/log/mail.log';
+const LOG_PATH = process.env.LOG_PATH;
 
-// Session & Auth setup
+// View engine setup
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+// Middleware
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json());
+
 app.use(session({
   secret: process.env.AUTH_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: { secure: process.env.NODE_ENV === 'production' }
 }));
-app.use(express.urlencoded({ extended: true }));
+app.use(flash());
+app.use(csurf());
+
 app.use(passport.initialize());
 app.use(passport.session());
 
@@ -31,85 +41,73 @@ function ensureAuthenticated(req, res, next) {
   res.redirect('/login');
 }
 
-// Routes: Login/Logout
+// Routes
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'views', 'login.html'));
+  res.render('login', { csrfToken: req.csrfToken(), error: req.flash('error') });
 });
 
 app.post('/login',
   passport.authenticate('local', {
     successRedirect: '/',
-    failureRedirect: '/login'
+    failureRedirect: '/login',
+    failureFlash: true
   })
 );
 
-app.post('/logout', (req, res) => {
+app.post('/logout', (req, res, next) => {
   req.logout(err => {
     if (err) return next(err);
     res.redirect('/login');
   });
 });
 
-// WebAuthn 2FA endpoints
+// WebAuthn endpoints
 app.post('/webauthn/registerRequest', ensureAuthenticated, webAuthn.generateRegistrationOptions);
 app.post('/webauthn/registerResponse', ensureAuthenticated, webAuthn.verifyRegistrationResponse);
 app.post('/webauthn/authenticateRequest', webAuthn.generateAuthenticationOptions);
 app.post('/webauthn/authenticateResponse', webAuthn.verifyAuthenticationResponse);
 
-// Protect UI and API
-app.use(ensureAuthenticated);
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/api', express.json(), (req, res, next) => {
-  if (req.isAuthenticated())
-   return next();
-  return res.status(401).json({error: 'Authentication required'});
+// Dashboard
+app.get('/', ensureAuthenticated, (req, res) => {
+  res.render('dashboard', { csrfToken: req.csrfToken(), user: req.user });
 });
 
-// Utility: map range to pflogsumm args
+// API auth guard
+app.use('/api', (req, res, next) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: 'Auth required' });
+  next();
+});
+
 function getPflogsummCommand(range) {
   switch (range) {
     case 'day':
       return `cat ${LOG_PATH} | cut -d ' ' -f 6- | pflogsumm`;
     case 'week':
-      return `pflogsumm ${LOG_PATH}`;
+      return `cat ${LOG_PATH} | cut -d ' ' -f 6- | pflogsumm`;
     case 'month':
-      return `pflogsumm ${LOG_PATH}`;
+      return `cat ${LOG_PATH} | cut -d ' ' -f 6- | pflogsumm`;
     default:
       return null;
   }
 }
 
-// API endpoint: /api/report/:range (day, week, month)
 app.get('/api/report/:range', (req, res) => {
-  const range = req.params.range;
-  const cmd = getPflogsummCommand(range);
+  const cmd = getPflogsummCommand(req.params.range);
+  if (!cmd) return res.status(400).json({ error: 'Invalid range' });
 
-  if (!cmd) {
-    return res.status(400).json({ error: 'Invalid range. Use day, week, or month.' });
-  }
-
-  exec(cmd, (error, stdout, stderr) => {
-    if (error) {
-      console.error('Error executing pflogsumm:', stderr);
-      return res.status(500).json({ error: 'Failed to generate report.' });
+  exec(cmd, (err, stdout, stderr) => {
+    if (err) {
+      console.error('pflogsumm error:', stderr);
+      return res.status(500).json({ error: 'pflogsumm failed' });
     }
-
-    // DEBUG: Output pflogsumm
-    // console.log('RAW PFLOGSUMM OUTPUT:\n', stdout);
-
-    const report = parsePflogsumm(stdout);
-
-    // DEBUG: JSON pflogsumm
-    console.log('PARSED REPORT:', JSON.stringify(report, null, 2));
-
-    res.json(report);
+    res.json(parsePflogsumm(stdout));
   });
 });
 
-// Export or start server
+// Start server
 if (require.main === module) {
   app.listen(PORT, HOST, () => {
-    console.log(`Server listening on http://${HOST}:${PORT}`);
+    console.log(`Server listening at http://${HOST}:${PORT}`);
   });
 } else {
   module.exports = app;
