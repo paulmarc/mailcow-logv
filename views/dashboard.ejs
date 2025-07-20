@@ -16,14 +16,15 @@
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
       <a class="navbar-brand" href="#"><%= dashboardTitle %></a>
-      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"         aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+              aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
       </button>
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto align-items-center">
           <li class="nav-item me-3">
             <label for="rangeSelect" class="visually-hidden">Select Range</label>
-            <select id="rangeSelect" class="form-select form-select-sm" aria-label="Select report range">
+            <select id="rangeSelect" class="form-select form-select-sm">
               <option value="day">Last Day</option>
               <option value="week">Last Week</option>
               <option value="month">Last Month</option>
@@ -32,7 +33,9 @@
           <li class="nav-item">
             <form method="POST" action="/logout" class="d-inline">
               <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
-              <button class="btn btn-outline-danger btn-sm" type="submit">Logout (<%= user.username %>)</button>
+              <button class="btn btn-outline-danger btn-sm" type="submit">
+                Logout (<%= user.username %>)
+              </button>
             </form>
           </li>
         </ul>
@@ -62,7 +65,10 @@
       <!-- Top Hosts/Domains -->
       <div class="col-md-6 mb-4">
         <div class="card shadow-sm">
-          <div class="card-header">Top Hosts/Domains</div>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Top Hosts/Domains</span>
+            <button id="exportHostsBtn" class="btn btn-sm btn-outline-secondary">Export CSV</button>
+          </div>
           <div class="card-body">
             <ul id="hostsList" class="list-group"></ul>
           </div>
@@ -72,7 +78,10 @@
       <!-- Senders & Recipients -->
       <div class="col-md-6 mb-4">
         <div class="card shadow-sm">
-          <div class="card-header">Senders &amp; Recipients</div>
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Senders &amp; Recipients</span>
+            <button id="exportContactsBtn" class="btn btn-sm btn-outline-secondary">Export CSV</button>
+          </div>
           <div class="card-body">
             <h6>Senders</h6>
             <ul id="sendersList" class="list-group mb-3"></ul>
