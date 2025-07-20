@@ -18,7 +18,7 @@ async function main() {
     [username, hash]
   );
 
-  console.log(`✔️  User '${username}' created/updated.`);
+  console.log(`User '${username}' created/updated.`);
   process.exit(0);
 }
 
