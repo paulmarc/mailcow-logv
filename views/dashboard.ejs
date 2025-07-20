@@ -29,6 +29,15 @@
   ></script>
 </head>
 <body>
+  <!-- Spinner Overlay -->
+  <div
+    id="spinnerOverlay"
+    class="spinner-overlay d-none"
+  >
+    <div class="spinner-border" role="status">
+      <span class="visually-hidden">Loading…</span>
+    </div>
+  </div>
   <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container-fluid">
       <a class="navbar-brand" href="#"><%= dashboardTitle %></a>
@@ -72,16 +81,6 @@
   </nav>
 
   <main class="container mt-4 position-relative">
-    <!-- Spinner Overlay -->
-    <div
-      id="spinnerOverlay"
-      class="spinner-overlay d-flex"
-      style="display: none;"
-    >
-      <div class="spinner-border" role="status">
-        <span class="visually-hidden">Loading...</span>
-      </div>
-    </div>
 
     <div class="row">
       <!-- Hourly Traffic Chart -->
