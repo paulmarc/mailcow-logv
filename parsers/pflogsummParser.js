@@ -47,12 +47,13 @@ function parsePflogsumm(raw) {
 
     // Parse totals
     if (state === 'grandtotals') {
+      // lines like "484   received" or "694   delivered"
       let m;
-      if ((m = trimmed.match(/^messages[\s]+(\d+)\s+received/i))) {
+      if ((m = trimmed.match(/^(\d+)\s+received$/i))) {
         result.totals.received = +m[1];
         continue;
       }
-      if ((m = trimmed.match(/^messages[\s]+(\d+)\s+delivered/i))) {
+      if ((m = trimmed.match(/^(\d+)\s+delivered$/i))) {
         result.totals.sent = +m[1];
         continue;
       }
@@ -71,12 +72,10 @@ function parsePflogsumm(raw) {
     }
 
     if (state === 'hosts_delivery' || state === 'hosts_received') {
-      // Capture count (first number) and host (last token)
+      // Capture count and host (last token)
       m = trimmed.match(/^(\d+)\s+[\d\.kMGT%\s]+\s+(\S+)$/);
       if (m) {
-        const count = +m[1];
-        const host = m[2];
-        result.hosts.push({ host, count });
+        result.hosts.push({ host: m[2], count: +m[1] });
       }
       continue;
     }
