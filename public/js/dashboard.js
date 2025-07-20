@@ -5,8 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const hostsList      = document.getElementById('hostsList');
   const sendersList    = document.getElementById('sendersList');
   const recipientsList = document.getElementById('recipientsList');
-  const totalReceived  = document.getElementById('totalReceived');
-  const totalSent      = document.getElementById('totalSent');
   const spinner        = document.getElementById('spinnerOverlay');
   const canvas         = document.getElementById('hourlyChart');
 
@@ -14,10 +12,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.error('Canvas element #hourlyChart not found');
     return;
   }
-  if (!spinner) {
-    console.error('Spinner overlay #spinnerOverlay not found');
-  }
-
   const ctx = canvas.getContext('2d');
   let hourlyChart = null;
 
@@ -57,9 +51,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadReport(range) {
-    // show spinner by toggling our custom 'active' class
     spinner.classList.add('active');
-
     try {
       const res = await fetch(`/api/report/${range}`);
       if (!res.ok) {
@@ -69,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         throw new Error(`Status ${res.status}`);
       }
-
       const data = await res.json();
 
       // Chart
@@ -83,20 +74,14 @@ document.addEventListener('DOMContentLoaded', () => {
       renderList(sendersList,    data.senders,    'sender');
       renderList(recipientsList, data.recipients, 'recipient');
 
-      // Totals
-      totalReceived.textContent = data.totals.received ?? 0;
-      totalSent.textContent     = data.totals.sent     ?? 0;
-
     } catch (err) {
       console.error('Error loading report:', err);
       alert('Error loading data; check console.');
     } finally {
-      // hide spinner
       spinner.classList.remove('active');
     }
   }
 
-  // initial load and change handler
   loadReport(rangeSelect.value);
   rangeSelect.addEventListener('change', () => loadReport(rangeSelect.value));
 });

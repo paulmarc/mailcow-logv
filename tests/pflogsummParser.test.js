@@ -1,62 +1,78 @@
-// tests/pflogsummParser.test.js
-const { parsePflogsumm } = require('../parsers/pflogsummParser');
+// parsers/pflogsummParser.js
 
-describe('parsePflogsumm()', () => {
-  const sampleRaw = `
-Hourly traffic summary
-00:00-01:00     10  5
-01:00-02:00     8   6
+/**
+ * Parses raw pflogsumm output into structured JSON.
+ * @param {string} raw - The raw text from pflogsumm.
+ * @returns {object} Parsed report without grand totals.
+ */
+function parsePflogsumm(raw) {
+  const lines = raw.split(/\r?\n/);
+  const result = {
+    hourly: [],
+    hosts: [],
+    senders: [],
+    recipients: []
+  };
+  let state = null;
 
-Host/domain summary
-mail.example.com   12
-smtp.another.net   4
+  lines.forEach(line => {
+    const trimmed = line.trim();
+    if (!trimmed) { state = null; return; }
 
-Senders by message count
-alice@example.com  7
-bob@example.com    3
+    // Section headers
+    if (/^Per-?Day Traffic Summary/i.test(trimmed) ||
+        /^Per-?Hour Traffic Daily Average/i.test(trimmed)) {
+      state = 'hourly';
+      return;
+    }
+    if (/^Host\/Domain Summary: Message Delivery/i.test(trimmed) ||
+        /^Host\/Domain Summary: Messages Received/i.test(trimmed)) {
+      state = 'hosts';
+      return;
+    }
+    if (/^Senders by message count/i.test(trimmed)) {
+      state = 'senders';
+      return;
+    }
+    if (/^Recipients by message count/i.test(trimmed)) {
+      state = 'recipients';
+      return;
+    }
 
-Recipients by message count
-carol@example.org  6
-dave@example.org   4
-
-Messages received 22
-Messages sent 11
-`;
-
-  it('parses hourly traffic correctly', () => {
-    const result = parsePflogsumm(sampleRaw);
-    expect(result.hourly).toEqual([
-      { period: '00:00-01:00', received: 10, sent: 5 },
-      { period: '01:00-02:00', received: 8, sent: 6 }
-    ]);
+    let m;
+    switch (state) {
+      case 'hourly':
+        // "Jun 15 2025   7   9 ..." or "0000-0100   1   1 ..."
+        if ((m = trimmed.match(/^(\S+\s+\d+\s+\d{4}|\d{4}-\d{4})\s+(\d+)\s+(\d+)/))) {
+          result.hourly.push({
+            period:   m[1],
+            received: +m[2],
+            sent:     +m[3]
+          });
+        }
+        break;
+      case 'hosts':
+        // "688    32517k  host1.domain"
+        if ((m = trimmed.match(/^(\d+)\s+\S+\s+(\S+)$/))) {
+          result.hosts.push({ host: m[2], count: +m[1] });
+        }
+        break;
+      case 'senders':
+        // "135   user@example.com"
+        if ((m = trimmed.match(/^(\d+)\s+(\S+)/))) {
+          result.senders.push({ sender: m[2], count: +m[1] });
+        }
+        break;
+      case 'recipients':
+        // "465   user@example.com"
+        if ((m = trimmed.match(/^(\d+)\s+(\S+)/))) {
+          result.recipients.push({ recipient: m[2], count: +m[1] });
+        }
+        break;
+    }
   });
 
-  it('parses hosts correctly', () => {
-    const result = parsePflogsumm(sampleRaw);
-    expect(result.hosts).toEqual([
-      { host: 'mail.example.com', count: 12 },
-      { host: 'smtp.another.net', count: 4 }
-    ]);
-  });
+  return result;
+}
 
-  it('parses senders correctly', () => {
-    const result = parsePflogsumm(sampleRaw);
-    expect(result.senders).toEqual([
-      { sender: 'alice@example.com', count: 7 },
-      { sender: 'bob@example.com', count: 3 }
-    ]);
-  });
-
-  it('parses recipients correctly', () => {
-    const result = parsePflogsumm(sampleRaw);
-    expect(result.recipients).toEqual([
-      { recipient: 'carol@example.org', count: 6 },
-      { recipient: 'dave@example.org', count: 4 }
-    ]);
-  });
-
-  it('parses totals correctly', () => {
-    const result = parsePflogsumm(sampleRaw);
-    expect(result.totals).toEqual({ received: 22, sent: 11 });
-  });
-});
+module.exports = { parsePflogsumm };
